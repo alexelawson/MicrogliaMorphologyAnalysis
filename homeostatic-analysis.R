@@ -1,5 +1,5 @@
 #setting working directory 
-setwd("/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/homeostatic-analysis.R") #set working directory
+setwd("/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis") #set working directory
 
 #loading packages 
 library(dplyr)
@@ -27,6 +27,8 @@ data_2xLPS_control_mutated <- data_2xLPS_control[, -c(5, 6)]
 
 #combining the two datasets 
 combined_control_data <- rbind(data_1xLPS_control, data_2xLPS_control_mutated)
+
+write.csv(combined_control_data, "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/control_data.csv", row.names = FALSE)
 
 #performing a log transformation on the relevant columns from the dataset 
 normalized_combined_control_data <-transform_log(combined_control_data, 1, start=7, end=33) 
