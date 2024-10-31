@@ -106,64 +106,64 @@ pcadata_elbow(cp_control, featurestart=7, featureend=33)
 
 
 
-write.csv(pca_kmeans,"~/Desktop/pca_kmeans", row.names = FALSE)
 
-test_data = classify_microglia_shapes(pca_kmeans)
-# Function to classify microglia morphology based on relative characteristics
-classify_microglia_shapes <- function(data) {
-  # Calculate mean values for each cluster
-  cluster_means <- data %>%
-    group_by(Cluster) %>%
-    summarise(
-      branches = mean(`# of branches`, na.rm = TRUE),
-      circularity = mean(Circularity, na.rm = TRUE),
-      density = mean(`Density of foreground pixels in hull area`, na.rm = TRUE),
-      span_ratio = mean(`Span ratio of hull (major/minor axis)`, na.rm = TRUE),
-      avg_branch_length = mean(`Average branch length`, na.rm = TRUE),
-      max_span = mean(`Maximum span across hull`, na.rm = TRUE)
-    )
-  # Determine ranks for each feature to assign relative morphologies
-  cluster_means <- cluster_means %>%
-    mutate(
-      branches_rank = dense_rank(branches),
-      circularity_rank = dense_rank(desc(circularity)),  # Higher circularity ranks higher
-      density_rank = dense_rank(desc(density)),
-      span_ratio_rank = dense_rank(desc(span_ratio)),
-      avg_branch_length_rank = dense_rank(desc(avg_branch_length)),
-      max_span_rank = dense_rank(desc(max_span))
-    ) %>%
-    # Assign Morphology based on relative characteristics
-    mutate(Morphology = case_when(
-      # Ameboid: Low branch count, high circularity and density
-      branches_rank == min(branches_rank) & 
-        circularity_rank == max(circularity_rank) & 
-        density_rank == max(density_rank) ~ "Ameboid",
-      
-      # Rod-like: Moderate branch count, elongated shape with high span ratio and moderate circularity
-      branches_rank < max(branches_rank) & 
-        span_ratio_rank == max(span_ratio_rank) &
-        circularity_rank < max(circularity_rank) ~ "Rod-like",
-      
-      # Ramified: High branch count, low density, and low circularity
-      branches_rank == max(branches_rank) & 
-        density_rank == min(density_rank) & 
-        circularity_rank == min(circularity_rank) ~ "Ramified",
-      
-      # Hypertrophic: Higher branch length and span, moderate to high branch count
-      avg_branch_length_rank == max(avg_branch_length_rank) & 
-        max_span_rank == max(max_span_rank) & 
-        branches_rank >= median(branches_rank) ~ "Hypertrophic",
-      
-      # Default for clusters that don’t match specific criteria
-      TRUE ~ "Unclassified"
-    ))
-  
-  # Join the morphology assignments back to the original data
-  data <- data %>%
-    left_join(cluster_means %>% select(Cluster, Morphology), by = "Cluster")
-  
-  return(data)
-}
+
+# 
+# # Function to classify microglia morphology based on relative characteristics
+# classify_microglia_shapes <- function(data) {
+#   # Calculate mean values for each cluster
+#   cluster_means <- data %>%
+#     group_by(Cluster) %>%
+#     summarise(
+#       branches = mean(`# of branches`, na.rm = TRUE),
+#       circularity = mean(Circularity, na.rm = TRUE),
+#       density = mean(`Density of foreground pixels in hull area`, na.rm = TRUE),
+#       span_ratio = mean(`Span ratio of hull (major/minor axis)`, na.rm = TRUE),
+#       avg_branch_length = mean(`Average branch length`, na.rm = TRUE),
+#       max_span = mean(`Maximum span across hull`, na.rm = TRUE)
+#     )
+#   # Determine ranks for each feature to assign relative morphologies
+#   cluster_means <- cluster_means %>%
+#     mutate(
+#       branches_rank = dense_rank(branches),
+#       circularity_rank = dense_rank(desc(circularity)),  # Higher circularity ranks higher
+#       density_rank = dense_rank(desc(density)),
+#       span_ratio_rank = dense_rank(desc(span_ratio)),
+#       avg_branch_length_rank = dense_rank(desc(avg_branch_length)),
+#       max_span_rank = dense_rank(desc(max_span))
+#     ) %>%
+#     # Assign Morphology based on relative characteristics
+#     mutate(Morphology = case_when(
+#       # Ameboid: Low branch count, high circularity and density
+#       branches_rank == min(branches_rank) & 
+#         circularity_rank == max(circularity_rank) & 
+#         density_rank == max(density_rank) ~ "Ameboid",
+#       
+#       # Rod-like: Moderate branch count, elongated shape with high span ratio and moderate circularity
+#       branches_rank < max(branches_rank) & 
+#         span_ratio_rank == max(span_ratio_rank) &
+#         circularity_rank < max(circularity_rank) ~ "Rod-like",
+#       
+#       # Ramified: High branch count, low density, and low circularity
+#       branches_rank == max(branches_rank) & 
+#         density_rank == min(density_rank) & 
+#         circularity_rank == min(circularity_rank) ~ "Ramified",
+#       
+#       # Hypertrophic: Higher branch length and span, moderate to high branch count
+#       avg_branch_length_rank == max(avg_branch_length_rank) & 
+#         max_span_rank == max(max_span_rank) & 
+#         branches_rank >= median(branches_rank) ~ "Hypertrophic",
+#       
+#       # Default for clusters that don’t match specific criteria
+#       TRUE ~ "Unclassified"
+#     ))
+#   
+#   # Join the morphology assignments back to the original data
+#   data <- data %>%
+#     left_join(cluster_means %>% select(Cluster, Morphology), by = "Cluster")
+#   
+#   return(data)
+# }
 
 # #Introduction
 # #Goal of the project/research question
