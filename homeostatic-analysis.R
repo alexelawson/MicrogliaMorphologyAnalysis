@@ -54,6 +54,7 @@ pcfeaturecorrelations(pca_data, pc.start=1, pc.end=3,
 
 #calculating percentage of microglia in each cluster and saving in a new dataframe
 cp <- clusterpercentage(pca_kmeans, "Cluster", Sex, Treatment)
+
 #mutating cluster column to assign classically understood shapes to each group
 cp <- cp %>% mutate(Cluster = 
                       case_when(Cluster=="4" ~ "Ramified",
@@ -61,6 +62,7 @@ cp <- cp %>% mutate(Cluster =
                                 Cluster=="2" ~ "Hypertrophic",
                                 Cluster=="1" ~ "Rod-Like"))
 
+#mutating pca_kmeans dataframe with cluster assignments for ease of analysis 
 pca_kmeans_w_cluster <- pca_kmeans %>% mutate(Cluster = 
                                                 case_when(Cluster=="4" ~ "Ramified",
                                                           Cluster=="3" ~ "Ameboid",
@@ -77,6 +79,7 @@ ggplot(cp, aes(x = Cluster, y = percentage, fill = Sex)) +
   theme_minimal() +
   facet_wrap(~ Treatment)
 
+#cluster map comparing PCA and how they explain each cluster 
 ggscatter(
   pca_kmeans_w_cluster, x = 'PC1', y = 'PC2', 
   color = 'Cluster',
