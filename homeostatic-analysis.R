@@ -7,6 +7,9 @@ library(MicrogliaMorphologyR)
 library(factoextra)
 library(ppclust)
 library(randomForest)
+library(pheatmap)
+
+
 set.seed(1)
 
 
@@ -79,20 +82,139 @@ stats_input$MouseID <- factor(stats_input$MouseID)
 stats_input$Cluster <- factor(stats_input$Cluster)
 stats_input$Treatment <- factor(stats_input$Treatment)
 stats_output <- stats_cluster.animal(data = stats_input, 
-                                       model = "percentage ~ Sex*Cluster*Treatment", 
+                                       model = "percentage ~ Sex*Treatment*Cluster + (1|MouseID)", 
                                        posthoc1 = "~Treatment|Cluster|Sex", 
-                                       posthoc2 = "~Sex|Cluster|Treatment")
-stats_output[[2]]
-stats_output[[3]]
+                                       posthoc2 = "~Cluster|Sex|Treatment")
+
+# Load the datasets
+cp_noID <- clusterpercentage(pca_kmeans, "Cluster", Sex, Treatment)
+cp_noID <- cp_noID %>% mutate(Cluster = 
+                      case_when(Cluster=="4" ~ "Ramified",
+                                Cluster=="3" ~ "Ameboid",
+                                Cluster=="2" ~ "Hypertrophic",
+                                Cluster=="1" ~ "Rod-Like"))
+
+data_graph <- cp_noID         # Original data
+significance_data <- stats_output[[2]]   # Statistical significance information for treatment vs. sex vs. cluster
+
+# Create a new column to flag significant bars
+significance_data <- significance_data %>%
+  mutate(
+    outline_color = ifelse(Significant == "significant", "red", "black")  # Red outline for significant bars
+  )
+
+# Create the plot
+plot <- ggplot(significance_data, aes(x = interaction(Cluster, contrast), y = estimate, fill = Sex)) +
+  geom_bar(
+    stat = "identity", 
+    position = position_dodge(width = 0.8), 
+    aes(color = outline_color)  # Use the outline_color column for the bar borders
+  ) +
+  geom_errorbar(aes(
+    ymin = estimate - SE,
+    ymax = estimate + SE
+  ),
+  position = position_dodge(width = 0.8), width = 0.2) +
+  labs(
+    title = "Comparison of Treatment Effects by Cluster, Treatment, and Sex",
+    x = "Cluster and Treatment Comparison",
+    y = "Estimated Difference",
+    fill = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 14),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels for readability
+  ) +
+  scale_fill_manual(
+    values = c("F" = "#FFB6C1", "M" = "#ADD8E6")  # Custom colors for Female and Male
+  ) +
+  scale_color_identity()  # Use color directly from the outline_color column
+
+# Display the plot
+print(plot)
+
+clusterfeatures(pca_kmeans_w_cluster, featurestart=9, featureend=35)
+
+cluster_female <- clusterfeatures(pca_kmeans_w_cluster %>% filter(Sex == "F"), featurestart=9, featureend=35)
+cluster_male <- clusterfeatures(pca_kmeans_w_cluster %>% filter(Sex == "M"), featurestart=9, featureend=35)
+
+View(pca_kmeans_w_cluster)
+
+# Step 1: Select relevant columns and group by Cluster and Sex
+feature_data <- pca_kmeans_w_cluster %>%
+  select(-c(PC1, PC2, Antibody, MouseID, Treatment, ID, UniqueID)) %>%
+  group_by(Cluster, Sex) %>%
+  summarize_all(mean, na.rm = TRUE)
+
+# Step 2: Separate data by Sex
+male_data <- feature_data %>%
+  filter(Sex == "M") %>%
+  select(-Sex) %>%
+  column_to_rownames("Cluster")
+
+female_data <- feature_data %>%
+  filter(Sex == "F") %>%
+  select(-Sex) %>%
+  column_to_rownames("Cluster")
+
+# Step 3: Scale each feature (column) independently
+scale_features <- function(x) (x - mean(x)) / sd(x)  # Z-score normalization
+
+male_data_scaled <- as.data.frame(lapply(male_data, scale_features))
+female_data_scaled <- as.data.frame(lapply(female_data, scale_features))
+
+# Convert to matrix format for pheatmap
+male_matrix <- as.matrix(male_data_scaled)
+female_matrix <- as.matrix(female_data_scaled)
+
+# Step 4: Create heatmaps
+pheatmap(male_matrix,
+         main = "Cluster-Specific Features (Male, Scaled by Feature)",
+         cluster_rows = TRUE,
+         cluster_cols = TRUE,
+         color = colorRampPalette(c("blue", "white", "red"))(50),
+         fontsize_row = 10,
+         fontsize_col = 10)
+
+pheatmap(female_matrix,
+         main = "Cluster-Specific Features (Female, Scaled by Feature)",
+         cluster_rows = TRUE,
+         cluster_cols = TRUE,
+         color = colorRampPalette(c("blue", "white", "red"))(50),
+         fontsize_row = 10,
+         fontsize_col = 10,
+         labels_row = rownames(female_matrix),  # Add cluster names as row labels
+         labels_col = colnames(female_matrix), 
+         annotation_legend = TRUE)  # Add feature names as column labels
+
+
+
+
+
+#PBS - 2xLPS Ameboid      F    0.5032497 0.2176803 Inf   2.312  0.0208 significant
+#PBS - LPS   Ameboid      F    0.4508931 0.2151366 Inf   2.096  0.0361 significant
+#PBS - 2xLPS Hypertrophic F   -0.7937671 0.2356975 Inf  -3.368  0.0008 significant
+#PBS - LPS   Hypertrophic F   -1.1379338 0.2252909 Inf  -5.051  <.0001 significant
+#PBS - LPS   Ameboid      M    0.4736139 0.2254086 Inf   2.101  0.0356 significant
+#PBS - LPS   Hypertrophic M   -1.1309393 0.2281476 Inf  -4.957  <.0001 significant
+
+#2xLPS - LPS Hypertrophic M   -0.9219614 0.3134551 Inf  -2.941  0.0033 significant
+#2xLPS - LPS Ramified     M    0.5362272 0.2524890 Inf   2.124  0.0337 significant
+
+
+
 
 
 #Supervised-analysis
 normalized_supervised_data <-transform_log(combined_data, 1, start=7, end=33) 
 normalized_supervised_data$Sex <- as.factor(normalized_supervised_data$Sex)
 normalized_supervised_data$Group <- as.factor(normalized_supervised_data$Treatment)
+
 #calculating pca data
 pca_data_supervised <- pcadata(normalized_supervised_data, featurestart=7, featureend=33,
                     pc.start=1, pc.end=10)
+
 #normalizing first 3 PCA's
 pca_data_normalized_supervised<- transform_scale(pca_data, start=1, end=3) 
 
@@ -135,39 +257,35 @@ ggplot(cp, aes(x = Cluster, y = percentage, fill = Sex)) +
   theme_minimal() +
   facet_wrap(~ Treatment)
 
+
+
+View(pca_kmeans_w_cluster)
+
+
 #Performing individual stats on variables of interest
-morphology_data <- combined_data %>% 
-  group_by(Sex, Treatment, MouseID) %>% 
-  summarise(across("Foreground pixels":"Maximum branch length", ~mean(.x))) %>% 
-  gather(Measure, Value, "Foreground pixels":"Maximum branch length")
-
-morphology_stats_input <- morphology_data 
-morphology_stats_input$Treatment <- factor(morphology_stats_input$Treatment)
-morphology_stats_input$Sex <- factor(morphology_stats_input$Sex)
-# run stats analysis for changes in individual morphology measures
-# you can specify up to two posthoc comparisons (posthoc1 and posthoc2 arguments) - if you only have one set of posthocs to run, specify the same comparison twice for both arguments. you will just get the same results in output[[2]] and output[[3]].
-morphology_stats_input_filtered <- morphology_stats_input %>% filter(Measure %in% c("Foreground pixels",
-                       "Average branch length"))
-View(morphology_stats_input_filtered)
-morphology_stats_testing_filtered <- stats_morphologymeasures.animal(data = morphology_stats_input_filtered, 
-                                                 model = "Value ~ Sex*Treatment", type="lm",
-                                                 posthoc1 = "~Sex|Treatment", 
-                                                 posthoc2 = "~Treatment|Sex")
-
-combined_data_gathered <- combined_data %>% gather(measure, value, 7:ncol(combined_data))
-female_data <- combined_data_gathered %>% filter(Sex == "F")
-male_data <- combined_data_gathered %>% filter(Sex == "M")
-outliers_distributions(female_data)
-outliers_distributions(male_data)
-
-
-
-
-
-
-
-
-
+morphology_data <- pca_kmeans_w_cluster[3:] %>% 
+   group_by(Sex, Treatment, MouseID) %>% 
+   summarise(across("Foreground pixels":"Maximum branch length", ~mean(.x))) %>% 
+   gather(Measure, Value, "Foreground pixels":"Maximum branch length")
+# 
+# morphology_stats_input <- morphology_data 
+# morphology_stats_input$Treatment <- factor(morphology_stats_input$Treatment)
+# morphology_stats_input$Sex <- factor(morphology_stats_input$Sex)
+# # run stats analysis for changes in individual morphology measures
+# # you can specify up to two posthoc comparisons (posthoc1 and posthoc2 arguments) - if you only have one set of posthocs to run, specify the same comparison twice for both arguments. you will just get the same results in output[[2]] and output[[3]].
+# morphology_stats_input_filtered <- morphology_stats_input %>% filter(Measure %in% c("Foreground pixels",
+#                        "Average branch length"))
+# View(morphology_stats_input_filtered)
+# morphology_stats_testing_filtered <- stats_morphologymeasures.animal(data = morphology_stats_input_filtered, 
+#                                                  model = "Value ~ Sex*Treatment", type="lm",
+#                                                  posthoc1 = "~Sex|Treatment", 
+#                                                  posthoc2 = "~Treatment|Sex")
+# 
+# combined_data_gathered <- combined_data %>% gather(measure, value, 7:ncol(combined_data))
+# female_data <- combined_data_gathered %>% filter(Sex == "F")
+# male_data <- combined_data_gathered %>% filter(Sex == "M")
+# outliers_distributions(female_data)
+# outliers_distributions(male_data)
 # #
 # 
 # #filtering out only control and ramified cells
