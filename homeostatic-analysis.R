@@ -135,77 +135,31 @@ plot <- ggplot(significance_data, aes(x = interaction(Cluster, contrast), y = es
 print(plot)
 
 clusterfeatures(pca_kmeans_w_cluster, featurestart=9, featureend=35)
+female_cluster_data <- pca_kmeans_w_cluster %>% filter(Sex == "F")
+male_cluster_data <- pca_kmeans_w_cluster %>% filter(Sex == "M")
 
-cluster_female <- clusterfeatures(pca_kmeans_w_cluster %>% filter(Sex == "F"), featurestart=9, featureend=35)
-cluster_male <- clusterfeatures(pca_kmeans_w_cluster %>% filter(Sex == "M"), featurestart=9, featureend=35)
+cluster_female <- clusterfeatures(female_cluster_data, featurestart=9, featureend=35)
+cluster_male <- clusterfeatures(male_cluster_data, featurestart=9, featureend=35)
 
-View(pca_kmeans_w_cluster)
 
-# Step 1: Select relevant columns and group by Cluster and Sex
-feature_data <- pca_kmeans_w_cluster %>%
-  select(-c(PC1, PC2, Antibody, MouseID, Treatment, ID, UniqueID)) %>%
-  group_by(Cluster, Sex) %>%
-  summarize_all(mean, na.rm = TRUE)
+#fuzzy analysis
+data_kmeans <- fcm(kmeans_input, centers=4, nstart=25)
+View(data_kmeans)
+# Replace `ppclust_object` with your object name
+saveRDS(data_kmeans, "fuzzy_clustering.rds")
+# Load the object
+fuzzy_clustering <- readRDS("fuzzy_clustering.rds")
 
-# Step 2: Separate data by Sex
-male_data <- feature_data %>%
-  filter(Sex == "M") %>%
-  select(-Sex) %>%
-  column_to_rownames("Cluster")
+memberships <- fuzzy_clustering$u
+membership_df <- as.data.frame(memberships)
+View(membership_df)
 
-female_data <- feature_data %>%
-  filter(Sex == "F") %>%
-  select(-Sex) %>%
-  column_to_rownames("Cluster")
-
-# Step 3: Scale each feature (column) independently
-scale_features <- function(x) (x - mean(x)) / sd(x)  # Z-score normalization
-
-male_data_scaled <- as.data.frame(lapply(male_data, scale_features))
-female_data_scaled <- as.data.frame(lapply(female_data, scale_features))
-
-# Convert to matrix format for pheatmap
-male_matrix <- as.matrix(male_data_scaled)
-female_matrix <- as.matrix(female_data_scaled)
-
-# Step 4: Create heatmaps
-pheatmap(male_matrix,
-         main = "Cluster-Specific Features (Male, Scaled by Feature)",
-         cluster_rows = TRUE,
-         cluster_cols = TRUE,
-         color = colorRampPalette(c("blue", "white", "red"))(50),
-         fontsize_row = 10,
-         fontsize_col = 10)
-
-pheatmap(female_matrix,
-         main = "Cluster-Specific Features (Female, Scaled by Feature)",
-         cluster_rows = TRUE,
-         cluster_cols = TRUE,
-         color = colorRampPalette(c("blue", "white", "red"))(50),
-         fontsize_row = 10,
-         fontsize_col = 10,
-         labels_row = rownames(female_matrix),  # Add cluster names as row labels
-         labels_col = colnames(female_matrix), 
-         annotation_legend = TRUE)  # Add feature names as column labels
+# Here, we are creating a new data frame that contains the first 2 PCs and original dataset, then renaming the data_kmeans$cluster column to simply say "Cluster". You can bind together as many of the PCs as you want. Binding the original, untransformed data is useful if you want to plot the raw values of any individual morphology measures downstream. 
+fuzzy_cluster_data <- cbind(pca_data[1:2], combined_data, membership_df)
 
 
 
-
-
-#PBS - 2xLPS Ameboid      F    0.5032497 0.2176803 Inf   2.312  0.0208 significant
-#PBS - LPS   Ameboid      F    0.4508931 0.2151366 Inf   2.096  0.0361 significant
-#PBS - 2xLPS Hypertrophic F   -0.7937671 0.2356975 Inf  -3.368  0.0008 significant
-#PBS - LPS   Hypertrophic F   -1.1379338 0.2252909 Inf  -5.051  <.0001 significant
-#PBS - LPS   Ameboid      M    0.4736139 0.2254086 Inf   2.101  0.0356 significant
-#PBS - LPS   Hypertrophic M   -1.1309393 0.2281476 Inf  -4.957  <.0001 significant
-
-#2xLPS - LPS Hypertrophic M   -0.9219614 0.3134551 Inf  -2.941  0.0033 significant
-#2xLPS - LPS Ramified     M    0.5362272 0.2524890 Inf   2.124  0.0337 significant
-
-
-
-
-
+########################
 #Supervised-analysis
 normalized_supervised_data <-transform_log(combined_data, 1, start=7, end=33) 
 normalized_supervised_data$Sex <- as.factor(normalized_supervised_data$Sex)
@@ -263,10 +217,10 @@ View(pca_kmeans_w_cluster)
 
 
 #Performing individual stats on variables of interest
-morphology_data <- pca_kmeans_w_cluster[3:] %>% 
-   group_by(Sex, Treatment, MouseID) %>% 
-   summarise(across("Foreground pixels":"Maximum branch length", ~mean(.x))) %>% 
-   gather(Measure, Value, "Foreground pixels":"Maximum branch length")
+#morphology_data <- pca_kmeans_w_cluster[3:] %>% 
+#   group_by(Sex, Treatment, MouseID) %>% 
+#   summarise(across("Foreground pixels":"Maximum branch length", ~mean(.x))) %>% 
+#   gather(Measure, Value, "Foreground pixels":"Maximum branch length")
 # 
 # morphology_stats_input <- morphology_data 
 # morphology_stats_input$Treatment <- factor(morphology_stats_input$Treatment)
