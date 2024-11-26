@@ -84,7 +84,9 @@ stats_output <- stats_cluster.animal(data = stats_input,
                                        posthoc2 = "~Sex|Cluster|Treatment")
 
 treatment_cluster_stats <- stats_output[[2]]
+write.csv(treatment_cluster_stats, "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/statistical-results/hard-cluster-post-hoc1.csv", row.names = FALSE)
 sex_cluster_stats <- stats_output[[3]]
+write.csv(sex_cluster_stats, "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/statistical-results/hard-cluster-post-hoc2.csv", row.names = FALSE)
 
 # Load the datasets
 cp_noID <- clusterpercentage(pca_kmeans, "Cluster", Sex, Treatment)
@@ -174,7 +176,11 @@ stats_output_fuzzy <- stats_cluster.animal(data = stats_input_fuzzy,
                                      posthoc2 = "~Sex|Cluster|Treatment")
 
 stats_treatment_cluster_fuzzy <- stats_output_fuzzy[[2]]
+write.csv(stats_treatment_cluster_fuzzy, "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/statistical-results/fuzzy-cluster-post-hoc1.csv", row.names = FALSE)
 stats_sex_fuzzy <- stats_output_fuzzy[[3]]
+write.csv(stats_sex_fuzzy, "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/statistical-results/fuzzy-cluster-post-hoc2.csv", row.names = FALSE)
+
+
 
 # Create a new column to flag significant bars
 significance_data_fuzzy <- stats_output_fuzzy[[2]] %>%
@@ -249,8 +255,11 @@ stats_output_ramified <- stats_cluster.animal(data = stats_input_ramified,
                                            posthoc2 = "~Sex|Cluster|Treatment")
 
 anova_stats_ramified <- stats_output_ramified[[1]]
+write.csv(anova_stats_ramified, "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/statistical-results/anova-stats-ramified-cluster.csv", row.names = FALSE)
 treatment_cluster_stats_ramified <- stats_output_ramified[[2]]
-stats_output_ramified[[3]]
+write.csv(treatment_cluster_stats_ramified, "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/statistical-results/hard-cluster-ramified-post-hoc1.csv", row.names = FALSE)
+sex_cluster_stats_ramified <- stats_output_ramified[[3]]
+write.csv(sex_cluster_stats_ramified, "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/statistical-results/hard-cluster-ramified-post-hoc2.csv", row.names = FALSE)
 
 
 
