@@ -8,8 +8,6 @@ library(factoextra)
 library(ppclust)
 library(randomForest)
 library(pheatmap)
-
-
 set.seed(1)
 
 
@@ -72,9 +70,8 @@ pca_kmeans_w_cluster <- pca_kmeans %>% mutate(Cluster =
                                                 case_when(Cluster=="4" ~ "Ramified",
                                                           Cluster=="3" ~ "Ameboid",
                                                           Cluster=="2" ~ "Hypertrophic",
-                                                          Cluster=="1" ~ "Rod-Like")
-                                                )
-
+                                                          Cluster=="1" ~ "Rod-Like"))
+                                                
 
 #Ensure 'Sex' and 'Treatment' are factors
 stats_input <- cp
@@ -84,7 +81,10 @@ stats_input$Treatment <- factor(stats_input$Treatment)
 stats_output <- stats_cluster.animal(data = stats_input, 
                                        model = "percentage ~ Sex*Treatment*Cluster + (1|MouseID)", 
                                        posthoc1 = "~Treatment|Cluster|Sex", 
-                                       posthoc2 = "~Cluster|Sex|Treatment")
+                                       posthoc2 = "~Sex|Cluster|Treatment")
+
+treatment_cluster_stats <- stats_output[[2]]
+sex_cluster_stats <- stats_output[[3]]
 
 # Load the datasets
 cp_noID <- clusterpercentage(pca_kmeans, "Cluster", Sex, Treatment)
@@ -134,28 +134,123 @@ plot <- ggplot(significance_data, aes(x = interaction(Cluster, contrast), y = es
 # Display the plot
 print(plot)
 
-clusterfeatures(pca_kmeans_w_cluster, featurestart=9, featureend=35)
-female_cluster_data <- pca_kmeans_w_cluster %>% filter(Sex == "F")
-male_cluster_data <- pca_kmeans_w_cluster %>% filter(Sex == "M")
 
-cluster_female <- clusterfeatures(female_cluster_data, featurestart=9, featureend=35)
-cluster_male <- clusterfeatures(male_cluster_data, featurestart=9, featureend=35)
+#fuzzy cluster analysis
+#data_kmeans <- fcm(kmeans_input, centers=4, nstart=25)
+#View(data_kmeans)
 
+#saving anlysis as RDS as it takes a long time to run a fuzzy cluster analysis 
+#saveRDS(data_kmeans, "fuzzy_clustering.rds")
 
-#fuzzy analysis
-data_kmeans <- fcm(kmeans_input, centers=4, nstart=25)
-View(data_kmeans)
-# Replace `ppclust_object` with your object name
-saveRDS(data_kmeans, "fuzzy_clustering.rds")
 # Load the object
-fuzzy_clustering <- readRDS("fuzzy_clustering.rds")
+fuzzy_clustering <- readRDS("/Users/alexlawson/Downloads/fuzzy_clustering.rds")
 
 memberships <- fuzzy_clustering$u
 membership_df <- as.data.frame(memberships)
 View(membership_df)
 
 # Here, we are creating a new data frame that contains the first 2 PCs and original dataset, then renaming the data_kmeans$cluster column to simply say "Cluster". You can bind together as many of the PCs as you want. Binding the original, untransformed data is useful if you want to plot the raw values of any individual morphology measures downstream. 
-fuzzy_cluster_data <- cbind(pca_data[1:2], combined_data, membership_df)
+fuzzy_cluster_data <- cbind(pca_data[1:2], combined_data, membership_df, pca_kmeans_w_cluster$Cluster) %>%
+  rename(Cluster=`pca_kmeans_w_cluster$Cluster`)
+clusterfeatures(fuzzy_cluster_data, featurestart=9, featureend=35)
+
+fuzzy_cluster_data_filtered <- fuzzy_cluster_data %>% 
+  filter(`Cluster 1` > 0.70|
+           `Cluster 2` > 0.70|
+           `Cluster 3` > 0.70|
+           `Cluster 4` > 0.70)
+
+cp_fuzzy <- clusterpercentage(fuzzy_cluster_data_filtered, "Cluster", MouseID, Treatment, Sex)
+cp_fuzzy_noID <- clusterpercentage(fuzzy_cluster_data_filtered, "Cluster", Treatment, Sex)
+View(cp_fuzzy)
+
+stats_input_fuzzy <- cp_fuzzy
+stats_input_fuzzy$MouseID <- factor(stats_input_fuzzy$MouseID)
+stats_input_fuzzy$Cluster <- factor(stats_input_fuzzy$Cluster)
+stats_input_fuzzy$Treatment <- factor(stats_input_fuzzy$Treatment)
+stats_output_fuzzy <- stats_cluster.animal(data = stats_input_fuzzy, 
+                                     model = "percentage ~ Sex*Treatment*Cluster + (1|MouseID)", 
+                                     posthoc1 = "~Treatment|Cluster|Sex", 
+                                     posthoc2 = "~Sex|Cluster|Treatment")
+
+stats_treatment_cluster_fuzzy <- stats_output_fuzzy[[2]]
+stats_sex_fuzzy <- stats_output_fuzzy[[3]]
+
+# Create a new column to flag significant bars
+significance_data_fuzzy <- stats_output_fuzzy[[2]] %>%
+  mutate(
+    outline_color = ifelse(Significant == "significant", "red", "black")  # Red outline for significant bars
+  )
+
+# Create the plot
+plot_fuzzy <- ggplot(significance_data_fuzzy, aes(x = interaction(Cluster, contrast), y = estimate, fill = Sex)) +
+  geom_bar(
+    stat = "identity", 
+    position = position_dodge(width = 0.8), 
+    aes(color = outline_color)  # Use the outline_color column for the bar borders
+  ) +
+  geom_errorbar(aes(
+    ymin = estimate - SE,
+    ymax = estimate + SE
+  ),
+  position = position_dodge(width = 0.8), width = 0.2) +
+  labs(
+    title = "Comparison of Treatment Effects by Cluster, Treatment, and Sex",
+    x = "Cluster and Treatment Comparison",
+    y = "Estimated Difference",
+    fill = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 14),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels for readability
+  ) +
+  scale_fill_manual(
+    values = c("F" = "#FFB6C1", "M" = "#ADD8E6")  # Custom colors for Female and Male
+  ) +
+  scale_color_identity()  # Use color directly from the outline_color column
+
+# Display the plot
+print(plot_fuzzy)
+
+cluster_column <- pca_kmeans_w_cluster$Cluster
+
+ramified_data <- cbind(normalized_combined_data, cluster_column) %>% filter(cluster_column=="Ramified")
+#calculating pca data
+pca_data_ramified <- pcadata(ramified_data, featurestart=7, featureend=33,
+                    pc.start=1, pc.end=10)
+
+#normalizing first 3 PCA's
+pca_data_scale_ramified <- transform_scale(pca_data_ramified, start=1, end=3) # scale pca data as input for k-means clustering
+
+#kmeans sampling + kmeans clustering
+kmeans_input_ramified <- pca_data_scale_ramified[1:3]
+sampling_ramified <- kmeans_input_ramified[sample(nrow(kmeans_input_ramified), 5000),] #sample 5000 random rows for cluster optimization
+fviz_nbclust(sampling_ramified, kmeans, method = 'silhouette', nstart=25, iter.max=50) # 4 clusters
+fviz_nbclust(sampling_ramified, kmeans, method = 'wss', nstart=25, iter.max=50)
+data_kmeans_ramified <- kmeans(kmeans_input_ramified, centers=4)
+
+# Here, we are creating a new data frame that contains the first 2 PCs and original dataset, then renaming the data_kmeans$cluster column to simply say "Cluster". You can bind together as many of the PCs as you want. Binding the original, untransformed data is useful if you want to plot the raw values of any individual morphology measures downstream. 
+pca_kmeans_ramified <- cbind(pca_data_ramified[1:2], ramified_data, as.data.frame(data_kmeans_ramified$cluster)) %>%
+  rename(Cluster=`data_kmeans_ramified$cluster`)
+
+#display cluster features in a heat map + plot 
+clusterfeatures(pca_kmeans_ramified, featurestart=9, featureend=35)
+plot <- clusterplots(pca_kmeans, "PC1", "PC2")
+
+stats_input_ramified <- clusterpercentage(pca_kmeans_ramified, "Cluster", Sex, Treatment, MouseID)
+stats_input_ramified$MouseID <- factor(stats_input_ramified$MouseID)
+stats_input_ramified$Cluster <- factor(stats_input_ramified$Cluster)
+stats_input_ramified$Treatment <- factor(stats_input_ramified$Treatment)
+
+stats_output_ramified <- stats_cluster.animal(data = stats_input_ramified, 
+                                           model = "percentage ~ Sex*Treatment*Cluster + (1|MouseID)", 
+                                           posthoc1 = "~Treatment|Cluster|Sex", 
+                                           posthoc2 = "~Sex|Cluster|Treatment")
+
+anova_stats_ramified <- stats_output_ramified[[1]]
+treatment_cluster_stats_ramified <- stats_output_ramified[[2]]
+stats_output_ramified[[3]]
 
 
 
@@ -210,8 +305,6 @@ ggplot(cp, aes(x = Cluster, y = percentage, fill = Sex)) +
   labs(title = "Percentages of Microglia in Each Category Separated by Sex and Treatment", x = "Cluster", y = "Percentage", fill = "Sex") +
   theme_minimal() +
   facet_wrap(~ Treatment)
-
-
 
 View(pca_kmeans_w_cluster)
 
