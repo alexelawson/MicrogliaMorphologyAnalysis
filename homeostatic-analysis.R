@@ -130,7 +130,7 @@ plot_hard_cluster <- ggplot(significance_data, aes(x = interaction(Cluster, cont
     axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels for readability
   ) +
   scale_fill_manual(
-    values = c("F" = "#FFB6C1", "M" = "#ADD8E6")  # Custom colors for Female and Male
+    values = c("F" = "white", "M" = "lightgrey")  # Custom colors for Female and Male
   ) +
   scale_color_identity()  # Use color directly from the outline_color column
 
@@ -213,7 +213,7 @@ plot_fuzzy <- ggplot(significance_data_fuzzy, aes(x = interaction(Cluster, contr
     axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels for readability
   ) +
   scale_fill_manual(
-    values = c("F" = "#FFB6C1", "M" = "#ADD8E6")  # Custom colors for Female and Male
+    values = c("F" = "white", "M" = "lightgrey")  # Custom colors for Female and Male
   ) +
   scale_color_identity()  # Use color directly from the outline_color column
 
@@ -229,14 +229,14 @@ pca_data_ramified <- pcadata(ramified_data, featurestart=7, featureend=33,
                     pc.start=1, pc.end=10)
 
 #normalizing first 3 PCA's
-pca_data_scale_ramified <- transform_scale(pca_data_ramified, start=1, end=3) # scale pca data as input for k-means clustering
+pca_data_scale_ramified <- transform_scale(pca_data_ramified, start=1, end=4) # scale pca data as input for k-means clustering
 
 #kmeans sampling + kmeans clustering
-kmeans_input_ramified <- pca_data_scale_ramified[1:3]
+kmeans_input_ramified <- pca_data_scale_ramified[1:4]
 sampling_ramified <- kmeans_input_ramified[sample(nrow(kmeans_input_ramified), 5000),] #sample 5000 random rows for cluster optimization
-fviz_nbclust(sampling_ramified, kmeans, method = 'silhouette', nstart=25, iter.max=50) # 4 clusters
+fviz_nbclust(sampling_ramified, kmeans, method = 'silhouette', nstart=25, iter.max=50) # 5 clusters
 fviz_nbclust(sampling_ramified, kmeans, method = 'wss', nstart=25, iter.max=50)
-data_kmeans_ramified <- kmeans(kmeans_input_ramified, centers=4)
+data_kmeans_ramified <- kmeans(kmeans_input_ramified, centers=5)
 
 # Here, we are creating a new data frame that contains the first 2 PCs and original dataset, then renaming the data_kmeans$cluster column to simply say "Cluster". You can bind together as many of the PCs as you want. Binding the original, untransformed data is useful if you want to plot the raw values of any individual morphology measures downstream. 
 pca_kmeans_ramified <- cbind(pca_data_ramified[1:2], ramified_data, as.data.frame(data_kmeans_ramified$cluster)) %>%
@@ -254,7 +254,7 @@ stats_input_ramified$Treatment <- factor(stats_input_ramified$Treatment)
 stats_output_ramified <- stats_cluster.animal(data = stats_input_ramified, 
                                            model = "percentage ~ Sex*Treatment*Cluster + (1|MouseID)", 
                                            posthoc1 = "~Treatment|Cluster|Sex", 
-                                           posthoc2 = "~Treatment|Cluster",adjust = "bonferroni" )
+                                           posthoc2 = "~Treatment|Cluster")
 
 anova_stats_ramified <- stats_output_ramified[[1]]
 write.csv(anova_stats_ramified, "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/statistical-results/anova-stats-ramified-cluster.csv", row.names = FALSE)
@@ -277,7 +277,7 @@ significance_data_ramified <- stats_output_ramified[[3]] %>%
   )
 
 # Create the plot
-plot_ramified <- ggplot(significance_data_ramified, aes(x = Cluster_Contrast, y = estimate)) +
+plot_ramified <- ggplot(significance_data_ramified %>% filter((Cluster %in% c(3, 4))), aes(x = Cluster_Contrast, y = estimate)) +
   geom_bar(
     stat = "identity", 
     position = position_dodge(width = 0.8), 
@@ -302,6 +302,10 @@ plot_ramified <- ggplot(significance_data_ramified, aes(x = Cluster_Contrast, y 
   scale_fill_identity()     # Use fill directly from the fill_color column
 
 print(plot_ramified)
+
+ggsave(filename = "ramified_3_and_4_plot.png", plot = plot_ramified, path = "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/plots_and_images", width = 8, height = 6, dpi = 300)
+
+
 
 
 
