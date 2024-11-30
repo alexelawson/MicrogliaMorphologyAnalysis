@@ -221,6 +221,43 @@ ggsave(filename = "fuzzy-cluster-plot.png", plot = plot_fuzzy, path = "/Users/al
 clusterfeatures(pca_kmeans, featurestart=9, featureend=35)
 cluster_column <- pca_kmeans_w_cluster$Cluster
 
+# Create a new column to flag significant bars
+significance_data_fuzzy <- stats_output_fuzzy[[2]] %>%
+  mutate(
+    outline_color = ifelse(Significant == "significant", "red", "black")  # Red outline for significant bars
+  )
+
+# Create the plot
+plot_fuzzy_ramified <- ggplot(significance_data_fuzzy %>% filter(Cluster == "Ramified"), aes(x = interaction(Cluster, contrast), y = estimate, fill = Sex)) +
+  geom_bar(
+    stat = "identity", 
+    position = position_dodge(width = 0.8), 
+    aes(color = outline_color)  # Use the outline_color column for the bar borders
+  ) +
+  geom_errorbar(aes(
+    ymin = estimate - SE,
+    ymax = estimate + SE
+  ),
+  position = position_dodge(width = 0.8), width = 0.2) +
+  labs(
+    title = "Comparison of Treatment Effects by Cluster, Treatment, and Sex",
+    x = "Cluster and Treatment Comparison",
+    y = "Estimated Difference",
+    fill = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 14),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels for readability
+  ) +
+  scale_fill_manual(
+    values = c("F" = "white", "M" = "lightgrey")  # Custom colors for Female and Male
+  ) +
+  scale_color_identity()  # Use color directly from the outline_color column
+
+# Display the plot
+print(plot_fuzzy_ramified)
+
 ramified_data <- cbind(normalized_combined_data, cluster_column) %>% filter(cluster_column=="Ramified")
 #calculating pca data
 pca_data_ramified <- pcadata(ramified_data, featurestart=7, featureend=33,
@@ -235,6 +272,7 @@ sampling_ramified <- kmeans_input_ramified[sample(nrow(kmeans_input_ramified), 5
 fviz_nbclust(sampling_ramified, kmeans, method = 'silhouette', nstart=25, iter.max=50) # 5 clusters
 fviz_nbclust(sampling_ramified, kmeans, method = 'wss', nstart=25, iter.max=50)
 data_kmeans_ramified <- kmeans(kmeans_input_ramified, centers=5)
+
 
 # Here, we are creating a new data frame that contains the first 2 PCs and original dataset, then renaming the data_kmeans$cluster column to simply say "Cluster". You can bind together as many of the PCs as you want. Binding the original, untransformed data is useful if you want to plot the raw values of any individual morphology measures downstream. 
 pca_kmeans_ramified <- cbind(pca_data_ramified[1:2], ramified_data, as.data.frame(data_kmeans_ramified$cluster)) %>%
