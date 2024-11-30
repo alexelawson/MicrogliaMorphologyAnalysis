@@ -6,8 +6,6 @@ library(dplyr)
 library(MicrogliaMorphologyR)
 library(factoextra)
 library(ppclust)
-library(randomForest)
-library(pheatmap)
 set.seed(1)
 
 
@@ -136,7 +134,7 @@ plot_hard_cluster <- ggplot(significance_data, aes(x = interaction(Cluster, cont
 
 # Display the plot
 print(plot_hard_cluster)
-ggsave(filename = "hard_cluster_plot.png", plot = plot_hard_cluster, path = "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/plots_and_images", width = 8, height = 6, dpi = 300)
+ggsave(filename = "hard-cluster-plot.png", plot = plot_hard_cluster, path = "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/plots-and-images", width = 8, height = 6, dpi = 300)
 
 #fuzzy cluster analysis
 #data_kmeans <- fcm(kmeans_input, centers=4, nstart=25)
@@ -219,7 +217,7 @@ plot_fuzzy <- ggplot(significance_data_fuzzy, aes(x = interaction(Cluster, contr
 
 # Display the plot
 print(plot_fuzzy)
-ggsave(filename = "fuzzy_cluster_plot.png", plot = plot_fuzzy, path = "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/plots_and_images", width = 8, height = 6, dpi = 300)
+ggsave(filename = "fuzzy-cluster-plot.png", plot = plot_fuzzy, path = "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/plots-and-images", width = 8, height = 6, dpi = 300)
 clusterfeatures(pca_kmeans, featurestart=9, featureend=35)
 cluster_column <- pca_kmeans_w_cluster$Cluster
 
@@ -252,7 +250,7 @@ stats_input_ramified$Cluster <- factor(stats_input_ramified$Cluster)
 stats_input_ramified$Treatment <- factor(stats_input_ramified$Treatment)
 
 stats_output_ramified <- stats_cluster.animal(data = stats_input_ramified, 
-                                           model = "percentage ~ Sex*Treatment*Cluster + (1|MouseID)", 
+                                           model = "percentage ~ Treatment*Cluster*Sex + (1|MouseID)", 
                                            posthoc1 = "~Treatment|Cluster|Sex", 
                                            posthoc2 = "~Treatment|Cluster")
 
@@ -262,6 +260,45 @@ treatment_cluster_stats_ramified <- stats_output_ramified[[2]]
 write.csv(treatment_cluster_stats_ramified, "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/statistical-results/hard-cluster-ramified-post-hoc1.csv", row.names = FALSE)
 sex_cluster_stats_ramified <- stats_output_ramified[[3]]
 write.csv(sex_cluster_stats_ramified, "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/statistical-results/hard-cluster-ramified-post-hoc2.csv", row.names = FALSE)
+
+# Create a new column to flag significant bars
+significance_data_ramified <- stats_output_ramified[[2]] %>%
+  mutate(
+    outline_color = ifelse(Significant == "significant", "red", "black")  # Red outline for significant bars
+  )
+
+# Create the plot
+plot_ramified_all <- ggplot(significance_data_ramified, aes(x = interaction(Cluster, contrast), y = estimate, fill = Sex)) +
+  geom_bar(
+    stat = "identity", 
+    position = position_dodge(width = 0.8), 
+    aes(color = outline_color)  # Use the outline_color column for the bar borders
+  ) +
+  geom_errorbar(aes(
+    ymin = estimate - SE,
+    ymax = estimate + SE
+  ),
+  position = position_dodge(width = 0.8), width = 0.2) +
+  labs(
+    title = "Comparison of Treatment Effects by Cluster, Treatment, and Sex",
+    x = "Cluster and Treatment Comparison",
+    y = "Estimated Difference",
+    fill = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 14),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels for readability
+  ) +
+  scale_fill_manual(
+    values = c("F" = "white", "M" = "lightgrey")  # Custom colors for Female and Male
+  ) +
+  scale_color_identity()  # Use color directly from the outline_color column
+
+# Display the plot
+print(plot_ramified_all)
+
+ggsave(filename = "ramified_all.png", plot = plot_ramified_all, path = "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/plots-and-images", width = 8, height = 6, dpi = 300)
 
 
 # Create a new column to flag significant bars and reorder levels
@@ -277,7 +314,7 @@ significance_data_ramified <- stats_output_ramified[[3]] %>%
   )
 
 # Create the plot
-plot_ramified <- ggplot(significance_data_ramified %>% filter((Cluster %in% c(3, 4))), aes(x = Cluster_Contrast, y = estimate)) +
+plot_ramified <- ggplot(significance_data_ramified %>% filter((Cluster %in% c(1, 2))), aes(x = Cluster_Contrast, y = estimate)) +
   geom_bar(
     stat = "identity", 
     position = position_dodge(width = 0.8), 
@@ -303,7 +340,7 @@ plot_ramified <- ggplot(significance_data_ramified %>% filter((Cluster %in% c(3,
 
 print(plot_ramified)
 
-ggsave(filename = "ramified_3_and_4_plot.png", plot = plot_ramified, path = "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/plots_and_images", width = 8, height = 6, dpi = 300)
+ggsave(filename = "ramified_1_and_2_plot.png", plot = plot_ramified, path = "/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis/plots-and-images", width = 8, height = 6, dpi = 300)
 
 
 
