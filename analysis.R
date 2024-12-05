@@ -1,7 +1,7 @@
 #Microglia-Morphology-Analysis
 #Author: Alexandra Lawson
 #Dataset taken from the Ciernia Lab
-#Description: pca and clustering analysis to investigate microglial morphology and how they respond to immune activation
+#Description: pca and clustering analysis to investigate microglial morphology and how they respond to immune activation, followed by graphical analysis and linear mixed model stats testing with post hoc analysis
 
 #setting working directory 
 setwd("/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis") #set working directory
@@ -298,7 +298,7 @@ stats_input_ramified$MouseID <- factor(stats_input_ramified$MouseID)
 stats_input_ramified$Cluster <- factor(stats_input_ramified$Cluster)
 stats_input_ramified$Treatment <- factor(stats_input_ramified$Treatment)
 stats_output_ramified <- stats_cluster.animal(data = stats_input_ramified, 
-                                           model = "percentage ~ Treatment*Cluster*Sex + (1|MouseID)", 
+                                           model = "percentage ~ Cluster*Treatment*Sex + (1|MouseID)", 
                                            posthoc1 = "~Treatment|Cluster|Sex", 
                                            posthoc2 = "~Treatment|Cluster")
 
