@@ -82,7 +82,7 @@ stats_input$Treatment <- factor(stats_input$Treatment)
 stats_output <- stats_cluster.animal(data = stats_input, 
                                        model = "percentage ~ Sex*Treatment*Cluster + (1|MouseID)", 
                                        posthoc1 = "~Treatment|Cluster|Sex", 
-                                       posthoc2 = "~Sex|Cluster|Treatment")
+                                       posthoc2 = "~Sex|Cluster|Treatment", adjust = "holm")
 
 
 #saving stats outputs 
@@ -101,7 +101,7 @@ significance_data <- significance_data %>%
   )
 
 #Creating the plot
-plot_hard_cluster <- ggplot(significance_data, aes(x = interaction(Cluster, contrast), y = estimate, fill = Sex)) +
+plot_hard_cluster <- ggplot(significance_data %>% filter(Cluster=="Ramified"), aes(x = interaction(Cluster, contrast), y = estimate, fill = Sex)) +
   geom_bar(
     stat = "identity", 
     position = position_dodge(width = 0.8), 
@@ -146,9 +146,12 @@ fuzzy_clustering <- readRDS("/Users/alexlawson/Downloads/fuzzy_clustering.rds")
 memberships <- fuzzy_clustering$u
 membership_df <- as.data.frame(memberships)
 
+
 #Creating a new data frame that contains the first 2 PCs and original dataset + renaming the data_kmeans$cluster column to simply say "Cluster"
 fuzzy_cluster_data <- cbind(pca_data[1:2], combined_data, membership_df, pca_kmeans_w_cluster$Cluster) %>%
   rename(Cluster=`pca_kmeans_w_cluster$Cluster`)
+
+View(fuzzy_cluster_data)
 
 fuzzy_cluster_data_filtered <- fuzzy_cluster_data %>% 
   filter(`Cluster 1` > 0.70|
@@ -171,7 +174,7 @@ stats_input_fuzzy$Treatment <- factor(stats_input_fuzzy$Treatment)
 stats_output_fuzzy <- stats_cluster.animal(data = stats_input_fuzzy, 
                                      model = "percentage ~ Sex*Treatment*Cluster + (1|MouseID)", 
                                      posthoc1 = "~Treatment|Cluster|Sex", 
-                                     posthoc2 = "~Sex|Cluster|Treatment")
+                                     posthoc2 = "~Sex|Cluster|Treatment", adjust = "holm")
 
 #Saving the output from the fuzzy cluster analysis 
 stats_treatment_cluster_fuzzy <- stats_output_fuzzy[[2]]
@@ -227,6 +230,7 @@ significance_data_fuzzy <- stats_output_fuzzy[[2]] %>%
   mutate(
     outline_color = ifelse(Significant == "significant", "red", "black")  # Red outline for significant bars
   )
+
 
 # Create the plot
 plot_fuzzy_ramified <- ggplot(significance_data_fuzzy %>% filter(Cluster == "Ramified"), aes(x = interaction(Cluster, contrast), y = estimate, fill = Sex)) +
@@ -358,7 +362,7 @@ significance_data_ramified <- stats_output_ramified[[3]] %>%
   )
 
 #Creating the plot 
-plot_ramified <- ggplot(significance_data_ramified %>% filter((Cluster %in% c(1, 2))), aes(x = Cluster_Contrast, y = estimate)) +
+plot_ramified <- ggplot(significance_data_ramified, aes(x = Cluster_Contrast, y = estimate)) +
   geom_bar(
     stat = "identity", 
     position = position_dodge(width = 0.8), 
