@@ -1,3 +1,8 @@
+#Microglia-Morphology-Analysis
+#Author: Alexandra Lawson
+#Dataset taken from the Ciernia Lab
+#Description: pca and clustering analysis to investigate microglial morphology and how they respond to immune activation
+
 #setting working directory 
 setwd("/Users/alexlawson/Documents/GitHub/MicrogliaMorphologyAnalysis") #set working directory
 
@@ -80,7 +85,7 @@ stats_input$Treatment <- factor(stats_input$Treatment)
 
 #linear mixed model with 2 post-hoc outputs 
 stats_output <- stats_cluster.animal(data = stats_input, 
-                                       model = "percentage ~ Sex*Treatment*Cluster + (1|MouseID)", 
+                                       model = "percentage ~ Cluster*Treatment*Sex + (1|MouseID)", 
                                        posthoc1 = "~Treatment|Cluster|Sex", 
                                        posthoc2 = "~Sex|Cluster|Treatment", adjust = "holm")
 
@@ -172,7 +177,7 @@ stats_input_fuzzy$MouseID <- factor(stats_input_fuzzy$MouseID)
 stats_input_fuzzy$Cluster <- factor(stats_input_fuzzy$Cluster)
 stats_input_fuzzy$Treatment <- factor(stats_input_fuzzy$Treatment)
 stats_output_fuzzy <- stats_cluster.animal(data = stats_input_fuzzy, 
-                                     model = "percentage ~ Sex*Treatment*Cluster + (1|MouseID)", 
+                                     model = "percentage ~ Cluster*Treatment*Sex + (1|MouseID)", 
                                      posthoc1 = "~Treatment|Cluster|Sex", 
                                      posthoc2 = "~Sex|Cluster|Treatment", adjust = "holm")
 
@@ -268,10 +273,8 @@ ramified_data <- cbind(normalized_combined_data, cluster_column) %>% filter(clus
 #calculating pca data for the ramified data 
 pca_data_ramified <- pcadata(ramified_data, featurestart=7, featureend=33,
                     pc.start=1, pc.end=10)
-
 #normalizing first 4 PCA's
 pca_data_scale_ramified <- transform_scale(pca_data_ramified, start=1, end=4) # scale pca data as input for k-means clustering
-
 #kmeans sampling + kmeans clustering for the ramified cluster with silhouette + wss to determine optimal number of clusters 
 kmeans_input_ramified <- pca_data_scale_ramified[1:4]
 sampling_ramified <- kmeans_input_ramified[sample(nrow(kmeans_input_ramified), 5000),] #sample 5000 random rows for cluster optimization
@@ -394,7 +397,7 @@ ggsave(filename = "ramified_1_and_2_plot.png", plot = plot_ramified, path = "/Us
 
 
 
-#Supervised cluster analysis purely for investifating purposes 
+#Supervised cluster analysis purely for investigating purposes 
 ########################
 #Supervised-analysis
 normalized_supervised_data <-transform_log(combined_data, 1, start=7, end=33) 
@@ -447,4 +450,3 @@ ggplot(cp, aes(x = Cluster, y = percentage, fill = Sex)) +
   theme_minimal() +
   facet_wrap(~ Treatment)
 
-View(pca_kmeans_w_cluster)
